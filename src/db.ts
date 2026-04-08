@@ -261,3 +261,32 @@ export function listTopics(): Topic[] {
     .prepare("SELECT * FROM topics ORDER BY id")
     .all() as Topic[];
 }
+
+// --- Data freshness -----------------------------------------------------------
+
+export interface DataFreshnessResult {
+  decisions: {
+    count: number;
+    latest_date: string | null;
+  };
+  guidelines: {
+    count: number;
+    latest_date: string | null;
+  };
+  checked_at: string;
+}
+
+export function getDataFreshness(): DataFreshnessResult {
+  const db = getDb();
+  const decisions = db
+    .prepare("SELECT COUNT(*) AS count, MAX(date) AS latest_date FROM decisions")
+    .get() as { count: number; latest_date: string | null };
+  const guidelines = db
+    .prepare("SELECT COUNT(*) AS count, MAX(date) AS latest_date FROM guidelines")
+    .get() as { count: number; latest_date: string | null };
+  return {
+    decisions,
+    guidelines,
+    checked_at: new Date().toISOString(),
+  };
+}

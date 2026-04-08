@@ -29,6 +29,7 @@ import {
   searchGuidelines,
   getGuideline,
   listTopics,
+  getDataFreshness,
 } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -119,6 +120,18 @@ const TOOLS = [
     description: "Return metadata about this MCP server: version, data source, coverage, and tool list.",
     inputSchema: { type: "object" as const, properties: {}, required: [] },
   },
+  {
+    name: "nl_dp_list_sources",
+    description:
+      "List the primary data sources used by this MCP server, including URLs, organization names, and data types covered.",
+    inputSchema: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "nl_dp_check_data_freshness",
+    description:
+      "Check data freshness: returns record counts and latest dates for decisions and guidelines in the local database.",
+    inputSchema: { type: "object" as const, properties: {}, required: [] },
+  },
 ];
 
 // --- Zod schemas -------------------------------------------------------------
@@ -144,6 +157,19 @@ const SearchGuidelinesArgs = z.object({
 const GetGuidelineArgs = z.object({
   id: z.number().int().positive(),
 });
+
+// --- Helpers ------------------------------------------------------------------
+
+function buildMeta(): Record<string, string> {
+  return {
+    disclaimer:
+      "AP decisions and guidance documents are provided for informational purposes only and do not constitute legal advice. Always consult the official AP website for authoritative information.",
+    copyright:
+      "© Autoriteit Persoonsgegevens (AP). Data sourced from autoriteitpersoonsgegevens.nl under open government principles.",
+    source_url: "https://www.autoriteitpersoonsgegevens.nl/",
+    data_age: new Date().toISOString().split("T")[0] ?? new Date().toISOString(),
+  };
+}
 
 // --- MCP server factory ------------------------------------------------------
 
@@ -178,37 +204,62 @@ function createMcpServer(): Server {
         case "nl_dp_search_decisions": {
           const parsed = SearchDecisionsArgs.parse(args);
           const results = searchDecisions({ query: parsed.query, type: parsed.type, topic: parsed.topic, limit: parsed.limit });
-          return textContent({ results, count: results.length });
+          return textContent({ _meta: buildMeta(), results, count: results.length });
         }
         case "nl_dp_get_decision": {
           const parsed = GetDecisionArgs.parse(args);
           const decision = getDecision(parsed.reference);
           if (!decision) return errorContent(`Decision not found: ${parsed.reference}`);
-          return textContent(decision);
+          return textContent({ _meta: buildMeta(), ...decision });
         }
         case "nl_dp_search_guidelines": {
           const parsed = SearchGuidelinesArgs.parse(args);
           const results = searchGuidelines({ query: parsed.query, type: parsed.type, topic: parsed.topic, limit: parsed.limit });
-          return textContent({ results, count: results.length });
+          return textContent({ _meta: buildMeta(), results, count: results.length });
         }
         case "nl_dp_get_guideline": {
           const parsed = GetGuidelineArgs.parse(args);
           const guideline = getGuideline(parsed.id);
           if (!guideline) return errorContent(`Guideline not found: id=${parsed.id}`);
-          return textContent(guideline);
+          return textContent({ _meta: buildMeta(), ...guideline });
         }
         case "nl_dp_list_topics": {
           const topics = listTopics();
-          return textContent({ topics, count: topics.length });
+          return textContent({ _meta: buildMeta(), topics, count: topics.length });
         }
         case "nl_dp_about": {
           return textContent({
+            _meta: buildMeta(),
             name: SERVER_NAME,
             version: pkgVersion,
             description: "AP (Autoriteit Persoonsgegevens) MCP server. Provides access to Dutch data protection authority decisions, boetes, and guidance documents.",
             data_source: "AP (https://www.autoriteitpersoonsgegevens.nl/)",
             tools: TOOLS.map((t) => ({ name: t.name, description: t.description })),
           });
+        }
+        case "nl_dp_list_sources": {
+          return textContent({
+            _meta: buildMeta(),
+            sources: [
+              {
+                name: "Autoriteit Persoonsgegevens (AP)",
+                url: "https://www.autoriteitpersoonsgegevens.nl/",
+                organization: "Dutch Data Protection Authority",
+                data_types: [
+                  "decisions (besluiten)",
+                  "sanctions (boetes)",
+                  "recommendations (aanbevelingen)",
+                  "guidelines (handleidingen, normuitleg, richtsnoeren, beleidsregels)",
+                ],
+                language: "nl",
+                coverage: "Netherlands — AVG/GDPR enforcement",
+              },
+            ],
+          });
+        }
+        case "nl_dp_check_data_freshness": {
+          const freshness = getDataFreshness();
+          return textContent({ _meta: buildMeta(), ...freshness });
         }
         default:
           return errorContent(`Unknown tool: ${name}`);
