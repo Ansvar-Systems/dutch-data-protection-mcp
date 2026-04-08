@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "mcp_name": "eu.ansvar/dutch-data-protection-mcp",
+  "source": {
+    "name": "Autoriteit Persoonsgegevens (AP)",
+    "url": "https://www.autoriteitpersoonsgegevens.nl/",
+    "country": "NL",
+    "language": "nl",
+    "legal_framework": "AVG (GDPR)"
+  },
+  "corpus": {
+    "decisions": {
+      "types": ["boete", "aanbeveling", "besluit", "normuitleg"],
+      "description": "AP enforcement decisions, administrative fines, recommendations, and formal decisions",
+      "indexed_fields": ["reference", "title", "entity_name", "summary", "full_text", "date", "gdpr_articles", "fine_amount", "topics", "status"]
+    },
+    "guidelines": {
+      "types": ["handleiding", "normuitleg", "richtsnoer", "beleidsregel"],
+      "description": "AP guidance documents, handbooks, norm explanations, and policy rules",
+      "indexed_fields": ["reference", "title", "summary", "full_text", "date", "topics"]
+    },
+    "topics": {
+      "controlled_vocabulary": [
+        { "id": "kinderen", "name_nl": "Kinderen", "name_en": "Children" },
+        { "id": "cookies", "name_nl": "Cookies", "name_en": "Cookies" },
+        { "id": "profilering", "name_nl": "Profilering", "name_en": "Profiling" },
+        { "id": "beveiliging", "name_nl": "Beveiliging", "name_en": "Security" },
+        { "id": "datalekken", "name_nl": "Datalekken", "name_en": "Data breaches" },
+        { "id": "toestemming", "name_nl": "Toestemming", "name_en": "Consent" },
+        { "id": "cameratoezicht", "name_nl": "Cameratoezicht", "name_en": "Camera surveillance" },
+        { "id": "grondrechten", "name_nl": "Grondrechten", "name_en": "Fundamental rights" },
+        { "id": "doorgifte", "name_nl": "Doorgifte", "name_en": "International transfers" }
+      ]
+    }
+  },
+  "exclusions": [
+    "EDPB guidelines (European level, not AP-specific)",
+    "Court rulings reviewing AP decisions",
+    "Parliamentary documents",
+    "Non-Dutch language publications"
+  ],
+  "freshness": {
+    "update_schedule": "weekly",
+    "workflow": ".github/workflows/check-updates.yml",
+    "freshness_tool": "nl_dp_check_data_freshness"
+  },
+  "metadata_generated": "2026-04-08"
+}
