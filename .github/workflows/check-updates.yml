@@ -1,0 +1,105 @@
+name: Check AP Data Updates
+
+on:
+  schedule:
+    # Run every Monday at 08:00 UTC
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check-updates:
+    name: Detect new AP publications
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check AP website for new decisions
+        id: check
+        run: |
+          # Fetch the AP decisions listing page and extract the latest publication date
+          LATEST_DATE=$(curl -s "https://www.autoriteitpersoonsgegevens.nl/nl/uitspraken-en-publicaties/besluiten" \
+            | grep -oP '\d{2}-\d{2}-\d{4}' | head -1 || echo "unknown")
+          echo "latest_ap_date=${LATEST_DATE}" >> "$GITHUB_OUTPUT"
+          echo "Detected latest AP publication date: ${LATEST_DATE}"
+
+      - name: Check AP guidelines page
+        id: check_guidelines
+        run: |
+          LATEST_GUIDELINE=$(curl -s "https://www.autoriteitpersoonsgegevens.nl/nl/uitspraken-en-publicaties/handleidingen" \
+            | grep -oP '\d{2}-\d{2}-\d{4}' | head -1 || echo "unknown")
+          echo "latest_guideline_date=${LATEST_GUIDELINE}" >> "$GITHUB_OUTPUT"
+          echo "Detected latest AP guideline date: ${LATEST_GUIDELINE}"
+
+      - name: Create issue if updates detected
+        if: steps.check.outputs.latest_ap_date != 'unknown' || steps.check_guidelines.outputs.latest_guideline_date != 'unknown'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const decisionDate = '${{ steps.check.outputs.latest_ap_date }}';
+            const guidelineDate = '${{ steps.check_guidelines.outputs.latest_guideline_date }}';
+            const today = new Date().toISOString().split('T')[0];
+
+            // Check if an open freshness issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'data-freshness',
+              state: 'open',
+            });
+
+            if (issues.data.length > 0) {
+              console.log('Freshness issue already open, skipping creation');
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Data Freshness] AP website check — ${today}`,
+              labels: ['data-freshness'],
+              body: [
+                '## AP Data Freshness Check',
+                '',
+                `**Check date:** ${today}`,
+                `**Latest AP decision detected:** ${decisionDate}`,
+                `**Latest AP guideline detected:** ${guidelineDate}`,
+                '',
+                '### Action Required',
+                '',
+                'Review the AP website for new publications and re-run the ingest pipeline if new data is available:',
+                '',
+                '```bash',
+                'npm run ingest',
+                '```',
+                '',
+                'Then rebuild and push the Docker image so the updated database is deployed.',
+                '',
+                '---',
+                '_This issue was created automatically by the `check-updates` workflow._',
+              ].join('\n'),
+            });
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "## AP Update Check Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Source | Latest Date Detected |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| AP Decisions | ${{ steps.check.outputs.latest_ap_date }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| AP Guidelines | ${{ steps.check_guidelines.outputs.latest_guideline_date }} |" >> "$GITHUB_STEP_SUMMARY"
