@@ -273,7 +273,14 @@ async function main(): Promise<void> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SDK type mismatch with exactOptionalPropertyTypes
       await mcpServer.connect(transport as any);
 
+      // Reentrancy guard: mcpServer.close() can synchronously re-fire
+      // transport.onclose through the SDK, which would re-enter this handler
+      // and recurse until the stack overflows ("RangeError: Maximum call
+      // stack size exceeded" observed in prod logs).
+      let closing = false;
       transport.onclose = () => {
+        if (closing) return;
+        closing = true;
         if (transport.sessionId) {
           activeSessions.delete(transport.sessionId);
         }
