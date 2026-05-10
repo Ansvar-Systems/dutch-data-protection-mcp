@@ -6,17 +6,31 @@
 #
 # The image expects a pre-built database at /app/data/ap.db.
 # Override with AP_DB_PATH for a custom location.
+#
+# Production stage carries node_modules (incl. better-sqlite3 native binding)
+# from the builder stage. Re-running `npm ci` in production strips the
+# postinstall-built native binding (sector-MCP binding regression 2026-05-09).
 # ─────────────────────────────────────────────────────────────────────────────
 
-# --- Stage 1: Build TypeScript ---
+# --- Stage 1: Build TypeScript + native modules ---
 FROM node:20-slim AS builder
 
 WORKDIR /app
+
+# Toolchain for better-sqlite3 native build
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts
+RUN npm ci
+
 COPY tsconfig.json ./
 COPY src/ src/
 RUN npm run build
+
+# Prune devDependencies but keep the native binding intact
+RUN npm prune --omit=dev
 
 # --- Stage 2: Production ---
 FROM node:20-slim AS production
@@ -25,10 +39,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV AP_DB_PATH=/app/data/ap.db
 
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
-
+# Carry pruned production node_modules (with better-sqlite3 .node binding)
+COPY --from=builder /app/node_modules/ node_modules/
 COPY --from=builder /app/dist/ dist/
+COPY package.json package-lock.json* ./
+
+# Database (provisioned at build time from GitHub Release by ghcr-build.yml)
+COPY data/database.db data/ap.db
 
 # Non-root user for security
 RUN addgroup --system --gid 1001 mcp && \
