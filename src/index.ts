@@ -26,7 +26,7 @@ import {
   getGuideline,
   listTopics,
 } from "./db.js";
-import { buildCitation } from "./citation.js";
+import { buildCitation, buildItemAttribution } from "./citation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -218,7 +218,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           topic: parsed.topic,
           limit: parsed.limit,
         });
-        return textContent({ results, count: results.length });
+        // Source Attribution Standard: per-item _citation on every served item.
+        const resultsWithCitation = results.map((r) => {
+          const row = r as unknown as Record<string, unknown>;
+          return {
+            ...row,
+            _citation: buildItemAttribution(
+              row["url"] != null ? String(row["url"]) : undefined,
+            ),
+          };
+        });
+        return textContent({ results: resultsWithCitation, count: resultsWithCitation.length });
       }
 
       case "nl_dp_get_decision": {
@@ -248,7 +258,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           topic: parsed.topic,
           limit: parsed.limit,
         });
-        return textContent({ results, count: results.length });
+        // Source Attribution Standard: per-item _citation on every served item.
+        const resultsWithCitation = results.map((r) => {
+          const row = r as unknown as Record<string, unknown>;
+          return {
+            ...row,
+            _citation: buildItemAttribution(
+              row["url"] != null ? String(row["url"]) : undefined,
+            ),
+          };
+        });
+        return textContent({ results: resultsWithCitation, count: resultsWithCitation.length });
       }
 
       case "nl_dp_get_guideline": {
@@ -272,7 +292,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "nl_dp_list_topics": {
         const topics = listTopics();
-        return textContent({ topics, count: topics.length });
+        // Source Attribution Standard: per-item _citation on every served item.
+        const topicsWithCitation = topics.map((t) => {
+          const row = t as unknown as Record<string, unknown>;
+          return {
+            ...row,
+            _citation: buildItemAttribution(
+              row["url"] != null ? String(row["url"]) : undefined,
+            ),
+          };
+        });
+        return textContent({ topics: topicsWithCitation, count: topicsWithCitation.length });
       }
 
       case "nl_dp_about": {

@@ -21,6 +21,39 @@ export interface CitationMetadata {
     tool: string;
     args: Record<string, string>;
   };
+  publisher?: string;
+  license?: string;
+  retrieved_at?: string;
+}
+
+/**
+ * Source attribution constant. publisher matches the AP host in
+ * infrastructure/policy/source-authority-registry.yml (status: under_review,
+ * AMBER pending Who-verzoek). license string TDM-Art-4-NL signals to the gateway
+ * that this is AMBER pending Who-verzoek; CDSM Art. 4 TDM exception applies
+ * pending the paper trail. See sources.yml for the full legal analysis.
+ */
+export const SOURCE_ATTRIBUTION = {
+  publisher: "autoriteitpersoonsgegevens.nl",
+  license: "TDM-Art-4-NL",
+  base_url: "https://www.autoriteitpersoonsgegevens.nl/",
+} as const;
+
+/**
+ * Build a minimal source-attribution stub for items in a search result list.
+ */
+export function buildItemAttribution(sourceUrl?: string | null): {
+  publisher: string;
+  license: string;
+  source_url: string;
+  retrieved_at: string;
+} {
+  return {
+    publisher: SOURCE_ATTRIBUTION.publisher,
+    license: SOURCE_ATTRIBUTION.license,
+    source_url: sourceUrl || SOURCE_ATTRIBUTION.base_url,
+    retrieved_at: new Date().toISOString(),
+  };
 }
 
 /**
@@ -47,11 +80,14 @@ export function buildCitation(
     canonical_ref: canonicalRef,
     display_text: displayText,
     ...(aliases && aliases.length > 0 && { aliases }),
-    ...(sourceUrl && { source_url: sourceUrl }),
+    source_url: sourceUrl || SOURCE_ATTRIBUTION.base_url,
     lookup: {
       tool: toolName,
       args: toolArgs,
     },
+    publisher: SOURCE_ATTRIBUTION.publisher,
+    license: SOURCE_ATTRIBUTION.license,
+    retrieved_at: new Date().toISOString(),
   };
 }
 
