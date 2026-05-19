@@ -1,0 +1,71 @@
+# sources.yml — data provenance contract for dutch-data-protection-mcp.
+#
+# Status: AMBER as of 2026-05-16. AP is the sole upstream and is publicly
+# serving here under TDM-Art-4 / Wet hergebruik overheidsinformatie pending
+# a formal Who-verzoek paper trail.
+
+schema_version: "1.0"
+mcp_name: "Dutch Data Protection MCP"
+category: "regulation"
+jurisdiction: "Netherlands"
+
+sources:
+  - name: "Autoriteit Persoonsgegevens"
+    authority: "Autoriteit Persoonsgegevens (Dutch DPA, ZBO toezichthouder under UAVG)"
+    official_url: "https://www.autoriteitpersoonsgegevens.nl"
+    retrieval_method: "AUTOMATED"
+    retrieval_script: "scripts/ingest-ap.ts"
+    format:
+      - "HTML"
+    authentication: "none"
+    update_frequency: "weekly"
+    license:
+      spdx: "TDM-Art-4-NL"
+      type: "CDSM Article 4 / Art. 15o Auteurswet TDM exception (no machine-readable reservation)"
+      url: "https://www.autoriteitpersoonsgegevens.nl/over-deze-website/copyright"
+      summary: >-
+        AP on-site copyright page requires per-case contact for "commercieel
+        verwerken" or "doorleveren aan derden". This is a procedural-consent
+        request, not a license prohibition. Three-layer legal analysis applies:
+        (1) Wet hergebruik overheidsinformatie (Who, 2024 amendment) binds AP
+        as a ZBO toezichthouder — exhaustive refusal grounds in the law do not
+        include "commercial reuse"; (2) Art. 15b Auteurswet baseline — AP has
+        explicitly reserved which keeps the on-site notice load-bearing; (3)
+        CDSM Art. 4 TDM exception applies on its face — verified absence of
+        machine-readable reservation per docs/audits/2026-05-16-ap-tdm-signal-check.md
+        in Ansvar-Architecture-Documentation (Hamburg LAION ruling Sept 2024
+        held human-readable T&Cs insufficient as machine-readable opt-out).
+        Photos and logos explicitly excluded and MUST NOT be ingested.
+    legal_basis:
+      - "Wet hergebruik overheidsinformatie (Who) — AP is a ZBO bound by public-task reuse default"
+      - "CDSM Art. 4 / Art. 15o Auteurswet TDM exception — applies in absence of machine-readable reservation"
+      - "Pending: formal Who-verzoek to AP for explicit commercial-redistribution paper trail"
+    verification:
+      registry_status: "under_review"
+      registry_entry: "infrastructure/policy/source-authority-registry.yml (host: autoriteitpersoonsgegevens.nl)"
+      at_risk_entry: "infrastructure/policy/at-risk-mcps.yml (repo_name: dutch-data-protection-mcp, audit_class: AMBER)"
+      audit_doc: "docs/audits/2026-05-16-ap-tdm-signal-check.md"
+      last_verified_at: "2026-05-16"
+      verified_by: "claude-dutch-licensing-audit-2026-05-16"
+    coverage:
+      scope: >-
+        AP boetebesluiten (sanction decisions), handhavingsbesluiten (enforcement decisions),
+        guidance/normuitleg/richtsnoeren/adviezen (guidance, interpretation, guidelines, opinions).
+        AVG/UAVG statute text itself is out of scope of this MCP (covered by dutch-law-mcp).
+      item_count_decisions: 29
+      item_count_guidelines: 27
+    languages:
+      - "nl"
+    carve_outs:
+      - "Photos and visual materials excluded per AP copyright clause"
+      - "AP logo and visual identity are trademarked and never ingested"
+
+# Source-attribution contract enforced at response time:
+#   Every search/get tool response item carries _citation.{publisher, license, source_url}
+#   matching the values declared above. License string TDM-Art-4-NL signals to the gateway
+#   that this is AMBER pending Who-verzoek + an audit doc establishes the TDM basis.
+#
+# Per-item source_url accuracy is a known gap as of 2026-05-16: the current DB schema does
+# not capture per-item URLs during ingestion. Responses fall back to the publisher base URL
+# https://www.autoriteitpersoonsgegevens.nl/. Closing this gap requires: (a) add a `url`
+# column to decisions/guidelines, (b) update scripts/ingest-ap.ts, (c) re-run ingestion.
